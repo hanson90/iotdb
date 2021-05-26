@@ -44,7 +44,7 @@ public abstract class LRULinkedHashMap<K extends Accountable, V> {
   /** maximum memory threshold. */
   private final long maxMemory;
   /** current used memory. */
-  private volatile long usedMemory;
+  private long usedMemory;
 
   /** memory size we need to retain while the cache is full */
   private final long retainMemory;
@@ -63,25 +63,45 @@ public abstract class LRULinkedHashMap<K extends Accountable, V> {
     key.setRamSize(size);
     usedMemory += size;
     V v = linkedHashMap.put(key, value);
+    if (v != null) {
+      logger.error("shouldn't put a key that already exists");
+    }
+
     if (usedMemory > maxMemory) {
       Iterator<Entry<K, V>> iterator = linkedHashMap.entrySet().iterator();
-      long count = 0;
+      int removeCount = 0;
       int beforeSize = linkedHashMap.size();
-      while (usedMemory > retainMemory && iterator.hasNext()) {
-        count++;
+      while (usedMemory > retainMemory) {
+        removeCount++;
+        if (!iterator.hasNext()) {
+          iterator = linkedHashMap.entrySet().iterator();
+        }
+        if (!iterator.hasNext()) {
+          break;
+        }
         Entry<K, V> entry = iterator.next();
         usedMemory -= entry.getKey().getRamSize();
         iterator.remove();
       }
       if (usedMemory > retainMemory) {
         logger.error(
-            "Current used memory is {}, retain memory is {}, map before size is {}, map current size is {}, iterator has next {}, delete {} entry",
+            "Current used memory is {}, retain memory is {}, map before size is {}, map current size is {}, delete {} entry",
             usedMemory,
             retainMemory,
             beforeSize,
             linkedHashMap.size(),
-            iterator.hasNext(),
-            count);
+            removeCount);
+        iterator = linkedHashMap.entrySet().iterator();
+        logger.error("new iterator has next {}", iterator.hasNext());
+        int actualSize = linkedHashMap.size();
+        int iteratorCount = 0;
+        while (iterator.hasNext()) {
+          iteratorCount++;
+          iterator.next();
+        }
+        if (actualSize != iteratorCount) {
+          logger.error("iteratorCount is {}, map actual size is {}", iteratorCount, actualSize);
+        }
       }
     }
     return v;
