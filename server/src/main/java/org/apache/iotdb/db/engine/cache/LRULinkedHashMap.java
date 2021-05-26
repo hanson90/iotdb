@@ -65,18 +65,23 @@ public abstract class LRULinkedHashMap<K extends Accountable, V> {
     V v = linkedHashMap.put(key, value);
     if (usedMemory > maxMemory) {
       Iterator<Entry<K, V>> iterator = linkedHashMap.entrySet().iterator();
+      long count = 0;
+      int beforeSize = linkedHashMap.size();
       while (usedMemory > retainMemory && iterator.hasNext()) {
+        count++;
         Entry<K, V> entry = iterator.next();
         usedMemory -= entry.getKey().getRamSize();
         iterator.remove();
       }
       if (usedMemory > retainMemory) {
         logger.error(
-            "Current used memory is {}, retain memory is {}, map size is {}, iterator has next {}",
+            "Current used memory is {}, retain memory is {}, map before size is {}, map current size is {}, iterator has next {}, delete {} entry",
             usedMemory,
             retainMemory,
+            beforeSize,
             linkedHashMap.size(),
-            iterator.hasNext());
+            iterator.hasNext(),
+            count);
       }
     }
     return v;
