@@ -21,6 +21,9 @@ package org.apache.iotdb.db.engine.cache;
 
 import org.apache.iotdb.tsfile.common.cache.Accountable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map.Entry;
@@ -28,6 +31,8 @@ import java.util.Set;
 
 /** This class is an LRU cache. <b>Note: It's not thread safe.</b> */
 public abstract class LRULinkedHashMap<K extends Accountable, V> {
+
+  private static final Logger logger = LoggerFactory.getLogger(LRULinkedHashMap.class);
 
   private static final float LOAD_FACTOR_MAP = 0.75f;
   private static final int INITIAL_CAPACITY = 128;
@@ -39,7 +44,7 @@ public abstract class LRULinkedHashMap<K extends Accountable, V> {
   /** maximum memory threshold. */
   private final long maxMemory;
   /** current used memory. */
-  private long usedMemory;
+  private volatile long usedMemory;
 
   /** memory size we need to retain while the cache is full */
   private final long retainMemory;
@@ -64,6 +69,14 @@ public abstract class LRULinkedHashMap<K extends Accountable, V> {
         Entry<K, V> entry = iterator.next();
         usedMemory -= entry.getKey().getRamSize();
         iterator.remove();
+      }
+      if (usedMemory > retainMemory) {
+        logger.error(
+            "Current used memory is {}, retain memory is {}, map size is {}, iterator has next {}",
+            usedMemory,
+            retainMemory,
+            linkedHashMap.size(),
+            iterator.hasNext());
       }
     }
     return v;
